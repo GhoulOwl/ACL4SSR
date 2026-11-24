@@ -18,7 +18,6 @@ DOMAIN-KEYWORD,dwtrack
 DOMAIN-KEYWORD,guanggao
 DOMAIN-KEYWORD,omgmta
 DOMAIN-KEYWORD,omniture
-DOMAIN-KEYWORD,openx
 DOMAIN-KEYWORD,partnerad
 DOMAIN-KEYWORD,pingfore
 DOMAIN-KEYWORD,socdm
@@ -320,7 +319,6 @@ DOMAIN-SUFFIX,sanya1.com
 DOMAIN-SUFFIX,scupio.com
 DOMAIN-SUFFIX,shuiguo.com
 DOMAIN-SUFFIX,shuzilm.cn
-DOMAIN-SUFFIX,similarweb.com
 DOMAIN-SUFFIX,sitemeter.com
 DOMAIN-SUFFIX,sitescout.com
 DOMAIN-SUFFIX,sitetag.us
@@ -532,6 +530,9 @@ DOMAIN-SUFFIX,mydas.mobi
 DOMAIN-SUFFIX,nend.net
 DOMAIN-SUFFIX,netshelter.net
 DOMAIN-SUFFIX,nexage.com
+DOMAIN-SUFFIX,openx.net
+DOMAIN-SUFFIX,openxenterprise.com
+DOMAIN-SUFFIX,openxmarket.asia
 DOMAIN-SUFFIX,owneriq.net
 DOMAIN-SUFFIX,pixels.asia
 DOMAIN-SUFFIX,plista.com
