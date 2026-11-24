@@ -19,8 +19,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     environment: acl4ssr-upstream-sync
-    env:
-      SYNC_REPO: ${{ runner.temp }}/acl4ssr-sync
 
     steps:
       - name: Check out workflow and validator
@@ -32,6 +30,8 @@ jobs:
         id: merge
         shell: bash
         run: |
+          SYNC_REPO="$RUNNER_TEMP/acl4ssr-sync"
+          echo "SYNC_REPO=$SYNC_REPO" >> "$GITHUB_ENV"
           git clone --no-tags --single-branch --branch master "https://github.com/$GITHUB_REPOSITORY.git" "$SYNC_REPO"
           cd "$SYNC_REPO"
           git remote add upstream https://github.com/ACL4SSR/ACL4SSR.git
