@@ -1,0 +1,92 @@
+name: Sync ACL4SSR upstream
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+      timezone: America/Los_Angeles
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: acl4ssr-upstream-master
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'GhoulOwl/ACL4SSR' && github.ref == 'refs/heads/rm'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: acl4ssr-upstream-sync
+    env:
+      SYNC_REPO: ${{ runner.temp }}/acl4ssr-sync
+
+    steps:
+      - name: Check out workflow and validator
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Merge upstream into a temporary checkout
+        id: merge
+        shell: bash
+        run: |
+          git clone --no-tags --single-branch --branch master "https://github.com/$GITHUB_REPOSITORY.git" "$SYNC_REPO"
+          cd "$SYNC_REPO"
+          git remote add upstream https://github.com/ACL4SSR/ACL4SSR.git
+          git fetch --no-tags upstream master
+
+          if git merge-base --is-ancestor upstream/master HEAD; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "The fork already contains upstream master."
+            exit 0
+          fi
+
+          fork_commit=$(git rev-parse HEAD)
+          configs=(
+            Clash/config/ACL4SSR_Online_Full.ini
+            Clash/config/ACL4SSR_Online_Full_jsDelivr.ini
+            Clash/config/ACL4SSR_Online_Full_GHProxy.ini
+            Clash/config/ACL4SSR_Online_Full_GHFast.ini
+          )
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          if ! git merge --no-commit --no-ff --no-stat upstream/master; then
+            git rev-parse --verify MERGE_HEAD >/dev/null
+          fi
+          git restore --source="$fork_commit" --staged --worktree -- "${configs[@]}"
+          if [ -n "$(git diff --name-only --diff-filter=U)" ]; then
+            echo "::error::Resolve the upstream merge conflicts outside the four custom configs."
+            git diff --name-only --diff-filter=U
+            exit 1
+          fi
+
+          git diff --cached --exit-code "$fork_commit" -- "${configs[@]}"
+          git commit -m 'Merge upstream ACL4SSR master'
+          git merge-base --is-ancestor upstream/master HEAD
+          git diff --exit-code "$fork_commit" HEAD -- "${configs[@]}"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Validate routing and rule URLs
+        if: steps.merge.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+        run: python3 -u .github/scripts/validate_acl4ssr_configs.py "$SYNC_REPO"
+
+      - name: Push verified master over SSH
+        if: steps.merge.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          SYNC_DEPLOY_KEY: ${{ secrets.ACL4SSR_SYNC_DEPLOY_KEY }}
+        run: |
+          test -n "$SYNC_DEPLOY_KEY"
+          umask 077
+          credentials=$(mktemp -d "$RUNNER_TEMP/acl4ssr-ssh.XXXXXXXX")
+          trap 'rm -f "$credentials/key" "$credentials/known_hosts"; rmdir "$credentials"' EXIT
+          printf '%s\n' "$SYNC_DEPLOY_KEY" > "$credentials/key"
+          unset SYNC_DEPLOY_KEY
+          printf '%s\n' 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > "$credentials/known_hosts"
+          export GIT_SSH_COMMAND="ssh -F /dev/null -i '$credentials/key' -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile='$credentials/known_hosts'"
+
+          git -C "$SYNC_REPO" push "git@github.com:$GITHUB_REPOSITORY.git" HEAD:refs/heads/master
+          git -C "$SYNC_REPO" rev-parse HEAD
